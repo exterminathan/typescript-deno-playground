@@ -1,4 +1,5 @@
-import leaflet from "leaflet";
+//another workaround cause something doesnt work
+import * as leaflet from "https://esm.sh/leaflet@1.7.1?dts";
 
 // Work around bug in Leaflet (https://github.com/Leaflet/Leaflet/issues/4968)
 import iconUrl from "leaflet/dist/images/marker-icon.png";
