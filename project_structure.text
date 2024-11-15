@@ -5,6 +5,10 @@
   - workflows
     - publish.yml
 - .gitignore
+- .hooks
+  - _
+    - .gitignore
+    - hook.sh
 - .lintstagedrc.json
 - assets
   - location.png
@@ -17,10 +21,12 @@
 - index.html
 - package-lock.json
 - package.json
-- project_structure.text
 - src
+  - backup.txt
+  - dataFetcher.ts
   - leafletWorkaround.ts
   - luck.ts
   - main.ts
   - style.css
+  - types.ts
 - vite.config.ts

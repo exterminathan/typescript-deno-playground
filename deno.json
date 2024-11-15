@@ -1,6 +1,7 @@
 {
   "tasks": {
     "dev": "deno run -A --node-modules-dir npm:vite",
+    "process": "deno run --allow-write --allow-net ./src/dataProcessor.ts",
     "build": "deno run -A --node-modules-dir npm:vite build",
     "preview": "deno run -A --node-modules-dir npm:vite preview",
     "serve": "deno run --allow-net --allow-read https://deno.land/std@0.157.0/http/file_server.ts dist/",
@@ -9,11 +10,15 @@
   "compilerOptions": {
     "lib": [
       "es2015",
-      "dom"
+      "dom",
+      "dom.iterable",
+      "esnext"
     ],
     "types": [
       "npm:@types/leaflet"
-    ]
+    ],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "imports": {
     "geojson": "npm:geojson@^0.5.0",
