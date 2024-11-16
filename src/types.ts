@@ -1,5 +1,7 @@
 // types.ts
+// Nathan Shturm
 
+/* ~-------- GENERALIZED DATA TYPES ----------~ */
 export interface RecordTimestamp {
     recordDate: string;
     recordTime: string;
@@ -23,31 +25,78 @@ export interface Location {
     milepost: string;
 }
 
-export interface CCObject {
+/* ~-------- SPECIALIZED DATA TYPES ----------~ */
+export interface LCSEndLocation {
+    endDistrict: string;
+    endLocationName: string;
+    endFreeFormDescription: string;
+    endNearbyPlace: string;
+    endLongitude: string;
+    endLatitude: string;
+    endElevation: string;
+    endDirection: string;
+    endCounty: string;
+    endRoute: string;
+    endRouteSuffix: string;
+    endPostmilePrefix: string;
+    endPostmile: string;
+    endAlignment: string;
+    endMilepost: string;
+}
+
+
+export interface LCSBeginLocation extends LCSEndLocation {
+    beginDistrict: string;
+    beginLocationName: string;
+    beginFreeFormDescription: string;
+    beginNearbyPlace: string;
+    beginLongitude: string;
+    beginLatitude: string;
+    beginElevation: string;
+    beginDirection: string;
+    beginCounty: string;
+    beginRoute: string;
+    beginRouteSuffix: string;
+    beginPostmilePrefix: string;
+    beginPostmile: string;
+    beginAlignment: string;
+    beginMilepost: string;
+}
+
+
+/* ~------- SERVICETYPE DATA OBJECTS ---------~ */
+export interface CCServiceType {
     cc: CCData['cc'];
+    type: string;
 }
 
-export interface CCTVObject {
+export interface CCTVServiceType {
     cctv: CCTVData['cctv'];
+    type: string;
 }
 
-export interface CMSObject {
+export interface CMSServiceType {
     cms: CMSData['cms'];
+    type: string;
 }
 
-export interface LCSObject {
+export interface LCSServiceType {
     lcs: LCSData['lcs'];
+    type: string;
 }
 
-export interface RWISObject {
+export interface RWISServiceType {
     rwis: RWISData['rwis'];
+    type: string;
 }
 
-export interface TTObject {
+export interface TTServiceType {
     tt: TTData['tt'];
+    type: string;
 }
 
-// CC Data Type
+
+/* ~----------- SERVICETYPE DATA -------------~ */
 export interface CCData {
     cc: {
         index: string;
@@ -62,7 +111,6 @@ export interface CCData {
     };
 }
 
-// CCTV Data Type
 export interface CCTVData {
     cctv: {
         index: string;
@@ -93,7 +141,6 @@ export interface CCTVData {
     };
 }
 
-// CMS Data Type
 export interface CMSData {
     cms: {
         index: string;
@@ -121,43 +168,6 @@ export interface CMSData {
             };
         };
     };
-}
-
-// LCS Data Type
-export interface LCSEndLocation {
-    endDistrict: string;
-    endLocationName: string;
-    endFreeFormDescription: string;
-    endNearbyPlace: string;
-    endLongitude: string;
-    endLatitude: string;
-    endElevation: string;
-    endDirection: string;
-    endCounty: string;
-    endRoute: string;
-    endRouteSuffix: string;
-    endPostmilePrefix: string;
-    endPostmile: string;
-    endAlignment: string;
-    endMilepost: string;
-}
-
-export interface LCSBeginLocation extends LCSEndLocation {
-    beginDistrict: string;
-    beginLocationName: string;
-    beginFreeFormDescription: string;
-    beginNearbyPlace: string;
-    beginLongitude: string;
-    beginLatitude: string;
-    beginElevation: string;
-    beginDirection: string;
-    beginCounty: string;
-    beginRoute: string;
-    beginRouteSuffix: string;
-    beginPostmilePrefix: string;
-    beginPostmile: string;
-    beginAlignment: string;
-    beginMilepost: string;
 }
 
 export interface LCSData {
@@ -208,7 +218,6 @@ export interface LCSData {
     };
 }
 
-// RWIS Data Type
 export interface RWISData {
     rwis: {
         index: string;
@@ -268,7 +277,6 @@ export interface RWISData {
     };
 }
 
-// TT Data Type
 export interface TTData {
     tt: {
         index: string;
@@ -287,3 +295,4 @@ export interface TTData {
         };
     };
 }
+

@@ -1,6 +1,7 @@
 // dataFetcher.ts
+// Nathan Shturm
 
-const availableDataTypes = {
+export const availableDataTypes = {
     cc: [1, 2, 3, 6, 7, 8, 9, 10, 11],              // Chain control data
     cctv: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],  // CCTV data
     cms: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],   // CMS data
@@ -9,18 +10,24 @@ const availableDataTypes = {
     tt: [3, 8, 11, 12]                              // Travel time data
 };
 
-// Function to generate URLs for different data types
 export function getDataUrl(district: number, type: keyof typeof availableDataTypes): string | null {
+    /**
+     * Get the URL for the data of the specified type and district
+     * @param district The district number
+     * @param type The type of data
+     * @returns The URL of the data or null if the data is not available for the district
+     */
+
     if (availableDataTypes[type].includes(district)) {
         return `https://cwwp2.dot.ca.gov/data/d${district}/${type}/${type}StatusD${String(district).padStart(2, '0')}.json`;
     }
-    return null; // Return null if the data is not available for the district
+    return null; 
 }
 
-// Export the list of all districts covered by any data type
+// Export available districts for reference
 export const districts = Array.from(
     new Set(
-        Object.values(availableDataTypes).flat() // Combine all districts into a unique set
+        Object.values(availableDataTypes).flat()
     )
 );
 

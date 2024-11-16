@@ -1,8 +1,13 @@
-import { getDataUrl, districts } from './dataFetcher.ts';
-import { CCObject, CCTVObject, CMSObject, LCSObject, RWISObject, TTObject } from './types.ts';
+import { getDataUrl } from './dataFetcher.ts';
+import { CCServiceType, CCTVServiceType, CMSServiceType, LCSServiceType, RWISServiceType, TTServiceType } from './types.ts';
 
-// Function to fetch data from a URL and parse it into a specific type
+// 
 export async function fetchData<T>(url: string): Promise<T | null> {
+    /**
+     * Fetch data from the specified URL and return the parsed JSON response.
+     * @param {string} url - The URL to fetch data from.
+     */
+
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -17,21 +22,29 @@ export async function fetchData<T>(url: string): Promise<T | null> {
     }
 }
 
-// Function to create a dictionary of data objects based on the binary flag input
-export async function createDataDictionary(binaryFlag: number) {
-    // Array of object types corresponding to binary positions
-    const objectTypes = ['cc', 'cctv', 'cms', 'lcs', 'rwis', 'tt'];
-    const selectedTypes = [];
+export async function createDataDictionary(binaryFlag: number, selectedDistricts: number[]) {
+    /**
+     * Create a dictionary of data objects for the selected districts and object types.
+     * @param {number} binaryFlag - A binary flag representing the selected object types.
+     * @param {number[]} selectedDistricts - An array of selected district numbers.
+     */
 
-    // Check each bit in the binary flag to decide if the type should be included
+    const objectTypes = ['cc', 'cctv', 'cms', 'lcs', 'rwis', 'tt'];
+    const selectedTypes: string[] = [];
+
+    // Populate selectedTypes based on the binary flag
     for (let i = 0; i < objectTypes.length; i++) {
         if ((binaryFlag & (1 << i)) !== 0) {
             selectedTypes.push(objectTypes[i]);
         }
     }
 
+    console.log("Selected types for fetch:", selectedTypes);
+    console.log("Selected districts for fetch:", selectedDistricts);
+
+    // Initialize an empty dictionary to store the data
     const dataDictionary: {
-        [key: string]: Array<CCObject | CCTVObject | CMSObject | LCSObject | RWISObject | TTObject>;
+        [key: string]: Array<(CCServiceType | CCTVServiceType | CMSServiceType | LCSServiceType | RWISServiceType | TTServiceType) & { type: string }>;
     } = {
         cc: [],
         cctv: [],
@@ -41,64 +54,62 @@ export async function createDataDictionary(binaryFlag: number) {
         tt: []
     };
 
-    for (const district of districts) {
+    for (const district of selectedDistricts) {
         for (const type of selectedTypes) {
             const url = getDataUrl(district, type as 'cc' | 'cctv' | 'cms' | 'lcs' | 'rwis' | 'tt');
             if (url) {
-                const data = await fetchData<{ data: (CCObject | CCTVObject | CMSObject | LCSObject | RWISObject | TTObject)[] }>(url); // Generic fetch for any data format
+                console.log(`Fetching data from URL: ${url}`);
+                const data = await fetchData<{ data: (CCServiceType | CCTVServiceType | CMSServiceType | LCSServiceType | RWISServiceType | TTServiceType)[] }>(url);
 
                 if (data && data.data) {
-                    switch (type) {
-                        case 'cc':
-                            data.data.forEach(item => dataDictionary.cc.push(item as CCObject));
-                            break;
-                        case 'cctv':
-                            data.data.forEach(item => dataDictionary.cctv.push(item as CCTVObject));
-                            break;
-                        case 'cms':
-                            data.data.forEach(item => dataDictionary.cms.push(item as CMSObject));
-                            break;
-                        case 'lcs':
-                            data.data.forEach(item => dataDictionary.lcs.push(item as LCSObject));
-                            break;
-                        case 'rwis':
-                            data.data.forEach(item => dataDictionary.rwis.push(item as RWISObject));
-                            break;
-                        case 'tt':
-                            data.data.forEach(item => dataDictionary.tt.push(item as TTObject));
-                            break;
-                    }
+                    console.log(`Data fetched for type ${type}:`, data.data);
+                    data.data.forEach(item => {
+                        // Add the 'type' property to the item
+                        const itemWithType = { ...item, type };
+                        dataDictionary[type].push(itemWithType);
+                    });
+                } else {
+                    console.warn(`No data fetched or data is empty for type ${type} at URL ${url}`);
                 }
             }
         }
     }
 
+    console.log("Final data dictionary:", dataDictionary);
     return dataDictionary;
 }
 
-// Function to format and write the data dictionary to a text file
-export async function writeDataToFile(binaryFlag: number) {
-    const allData = await createDataDictionary(binaryFlag);
+
+export async function writeDataToFile(binaryFlag: number, selectedDistricts: number[]) {
+    /**
+     * Write the fetched data to a text file in a formatted manner.
+     * @param {number} binaryFlag - A binary flag representing the selected object types.
+     * @param {number[]} selectedDistricts - An array of selected district numbers.
+     */
+    
+    const allData = await createDataDictionary(binaryFlag, selectedDistricts);
     const formattedData = Object.entries(allData)
-        .filter(([_key, dataArray]) => dataArray.length > 0) // Only include non-empty arrays
+        .filter(([_key, dataArray]) => dataArray.length > 0)
         .map(([key, dataArray]) => {
             const header = `~----${key.toUpperCase()} OBJECTS-----~`;
             const footer = `~------------------------------~`;
+
+            // Format each object in the array for display in the text file
             const body = dataArray
                 .map(obj => {
                     switch (key) {
                         case 'cc':
-                            return `[CC Object at index ${(obj as CCObject).cc.index}]`;
+                            return `[CC Object at index ${(obj as CCServiceType).cc.index}]`;
                         case 'cctv':
-                            return `[CCTV Object at index ${(obj as CCTVObject).cctv.index}]`;
+                            return `[CCTV Object at index ${(obj as CCTVServiceType).cctv.index}]`;
                         case 'cms':
-                            return `[CMS Object at index ${(obj as CMSObject).cms.index}]`;
+                            return `[CMS Object at index ${(obj as CMSServiceType).cms.index}]`;
                         case 'lcs':
-                            return `[LCS Object at index ${(obj as LCSObject).lcs.index}]`;
+                            return `[LCS Object at index ${(obj as LCSServiceType).lcs.index}]`;
                         case 'rwis':
-                            return `[RWIS Object at index ${(obj as RWISObject).rwis.index}]`;
+                            return `[RWIS Object at index ${(obj as RWISServiceType).rwis.index}]`;
                         case 'tt':
-                            return `[TT Object at index ${(obj as TTObject).tt.index}]`;
+                            return `[TT Object at index ${(obj as TTServiceType).tt.index}]`;
                         default:
                             return '[Unknown Object]';
                     }
@@ -110,15 +121,10 @@ export async function writeDataToFile(binaryFlag: number) {
         .join('\n\n');
 
     try {
+        // Write the formatted data to a text file
         await Deno.writeTextFile('data_out.txt', formattedData);
         console.log('Data written to data_out.txt successfully.');
     } catch (error) {
         console.error('Error writing data to file:', error);
     }
 }
-
-// Run the function with a binary flag input (e.g., 43 -> 101011)
-(async () => {
-    const binaryFlag = 16; // Replace with your desired number input
-    await writeDataToFile(binaryFlag);
-})();
