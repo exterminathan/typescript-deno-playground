@@ -1,13 +1,7 @@
 // main.ts
 // Nathan Shturm
-// https://chatgpt.com/c/6737c34b-b418-800a-a237-473e3e033150
-// https://chatgpt.com/c/67381f2b-5a68-800a-ac9e-6c110742a26a
-// https://chatgpt.com/c/673829fe-c7f4-800a-9041-f56be6be239f
-// https://chatgpt.com/c/67383609-fa50-800a-8d3c-6c962399e795?model=gpt-4o
-//https://chatgpt.com/c/67384d90-23c4-800a-8a6d-dd12bfd53a07?model=gpt-4o
 
 // TODO: Fix the marker centering beforepopup
-// Fix github not showing marker image
 
 
 // deno-lint-ignore-file
