@@ -1,19 +1,42 @@
 // main.ts
 // Nathan Shturm
+// https://chatgpt.com/c/6737c34b-b418-800a-a237-473e3e033150
+// https://chatgpt.com/c/67381f2b-5a68-800a-ac9e-6c110742a26a
+// https://chatgpt.com/c/673829fe-c7f4-800a-9041-f56be6be239f
+// https://chatgpt.com/c/67383609-fa50-800a-8d3c-6c962399e795?model=gpt-4o
+//https://chatgpt.com/c/67384d90-23c4-800a-8a6d-dd12bfd53a07?model=gpt-4o
+
+// TODO: Fix the marker centering beforepopup
+// Fix github not showing marker image
+
 
 // deno-lint-ignore-file
 
 // Imports
 import { createDataDictionary } from './dataProcessor.ts';
 import { availableDataTypes } from './dataFetcher.ts';
+
+import 'leaflet/dist/images/marker-icon-2x.png';
 import 'leaflet/dist/leaflet.css'; 
 import L from 'leaflet';
 import './style.css';
 import "./leafletWorkaround.ts";
 
+// @ts-ignore <it literally won't work without this again>
+import markerIconImage from "../assets/location.png";
+
 /* ~-------------------VARIABLES/INITIALIZATION-------------------~ */
 // Constants
 const DISTRICT_ZOOM = 10; 
+
+// Images
+const markerImage = L.icon({
+    iconUrl: markerIconImage,
+    iconSize: [35, 49],
+    iconAnchor: [17.5, 49],
+    popupAnchor: [0, -24.5],
+  });
+
 
 // HTML Elements
 const app = document.getElementById('app') as HTMLElement;
@@ -113,7 +136,15 @@ function updateMap() {
                 const longitude = parseFloat(dataEntry.location.longitude);
                 const district = parseInt(dataEntry.location.district);
                 if (!isNaN(latitude) && !isNaN(longitude) && bounds.contains([latitude, longitude]) && district === selectedDistrict.value) {
-                    const marker = L.marker([latitude, longitude]).addTo(map);
+                    const marker = L.marker([latitude, longitude], {
+                        icon: markerImage,
+                    }).addTo(map);
+                    
+                    // Center the map on the marker when it is clicked before showing the popup
+                    // marker.on('click', () => {
+                    //     map.setView([latitude, longitude], map.getZoom(), { animate: true });
+                    // });
+
                     marker.bindPopup(createPopup(data));
                 }
             }
