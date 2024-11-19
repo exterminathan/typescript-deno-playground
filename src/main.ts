@@ -1,27 +1,33 @@
 // main.ts
 // Nathan Shturm
 
-// TODO: Fix the marker centering beforepopup
-
+// TODO: fix memory usage: eventually the page crashes due to being out of memory
 
 // deno-lint-ignore-file
 
 // Imports
 import { createDataDictionary } from './dataProcessor.ts';
 import { availableDataTypes } from './dataFetcher.ts';
-
-import 'leaflet/dist/images/marker-icon-2x.png';
-import 'leaflet/dist/leaflet.css'; 
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import * as LCG from 'leaflet-control-geocoder';
 import './style.css';
 import "./leafletWorkaround.ts";
 
-// @ts-ignore <it literally won't work without this again>
+//@ts-ignore 
 import markerIconImage from "../assets/location.png";
+//@ts-ignore
+import ccIcon from "../assets/ccIcon.png";
+//@ts-ignore
+import cctvIcon from "../assets/cctvIcon.png";
+//@ts-ignore
+import cmsIcon from "../assets/cmsIcon.png";
+
+import 'leaflet-control-geocoder/dist/Control.Geocoder.css';
 
 /* ~-------------------VARIABLES/INITIALIZATION-------------------~ */
 // Constants
-const DISTRICT_ZOOM = 10; 
+const DISTRICT_ZOOM = 10;
 
 // Images
 const markerImage = L.icon({
@@ -29,8 +35,28 @@ const markerImage = L.icon({
     iconSize: [35, 49],
     iconAnchor: [17.5, 49],
     popupAnchor: [0, -24.5],
-  });
+});
 
+const ccMarkerImage = L.icon({
+    iconUrl: ccIcon,
+    iconSize: [35, 49],
+    iconAnchor: [17.5, 49],
+    popupAnchor: [0, -24.5],
+});
+
+const cctvMarkerImage = L.icon({
+    iconUrl: cctvIcon,
+    iconSize: [35, 49],
+    iconAnchor: [17.5, 49],
+    popupAnchor: [0, -24.5],
+});
+
+const cmsMarkerImage = L.icon({
+    iconUrl: cmsIcon,
+    iconSize: [35, 49],
+    iconAnchor: [17.5, 49],
+    popupAnchor: [0, -24.5],
+});
 
 // HTML Elements
 const app = document.getElementById('app') as HTMLElement;
@@ -43,26 +69,115 @@ const districtContainer = document.createElement('div');
 districtContainer.id = 'districtContainer';
 const selectedDistrict = { value: 1 };
 
-const submitButton = document.createElement('button');
-submitButton.id = 'submitButton';
-submitButton.innerText = 'Submit';
-
 const mapContainer = document.createElement('div');
 mapContainer.id = 'map';
 app.appendChild(mapContainer);
 
 const map = L.map('map').setView([37.7749, -122.4194], 6);
+map.doubleClickZoom.disable();
+
 
 // Create Leaflet map
 L.tileLayer(
     "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png", {
         minZoom: 0,
         maxZoom: 20,
+        zoomControl: true,
         attribution:
         '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }
 ).addTo(map);
 
+// Add LCG geocoder control
+const geocoder = LCG.geocoder({
+    defaultMarkGeocode: true,
+    position: 'topright',
+})
+    .on('markgeocode', function (e) {
+        const latlng = e.geocode.center;
+        map.setView(latlng, 15);
+        updateMap();
+    })
+    .addTo(map);
+
+// overlay div for type buttons
+const overlay = document.createElement('div');
+overlay.id = 'overlay';
+
+// overlay drop down button
+const overlayDropDownButton = document.createElement('button');
+overlayDropDownButton.innerText = 'Data Points';
+overlayDropDownButton.classList.add('option-button');
+overlayDropDownButton.onclick = () => {
+    overlay.classList.toggle('show'); // Toggle the dropdown's visibility
+    overlayDropDownButton.classList.toggle('expanded'); // Indicate the button is active
+    
+    // Hide or show buttons based on the overlay's visibility
+    if (overlay.classList.contains('show')) {
+        Array.from(overlay.children).forEach(child => {
+            if (child !== overlayDropDownButton) {
+                (child as HTMLElement).style.display = 'block';
+            }
+        });
+    } else {
+        Array.from(overlay.children).forEach(child => {
+            if (child !== overlayDropDownButton) {
+                (child as HTMLElement).style.display = 'none';
+            }
+        });
+    }
+};
+
+
+overlay.appendChild(overlayDropDownButton);
+
+
+options.forEach((option, index) => {
+    const button = document.createElement('button');
+    button.innerText = option.toUpperCase();
+    button.classList.add('option-button');
+    button.onclick = async () => {
+        selectedOptions[index] = !selectedOptions[index];
+        if (selectedOptions[index]) {
+            button.classList.add('selected');
+        } else {
+            button.classList.remove('selected');
+        }
+
+        await updateDataAndMap(); // Ensures map doesn't move when an option is toggled
+    };
+
+    overlay.append(button);
+    optionButtons.push(button);
+});
+
+
+
+
+
+
+for (let i = 1; i <= 12; i++) {
+    const districtButton = document.createElement('button');
+    districtButton.innerText = `District ${i}`;
+    districtButton.classList.add('district-button');
+    districtButton.onclick = async () => {
+        selectedDistrict.value = i;
+        districtButton.classList.add('selected-district');
+        setDistrictView(i);
+        Array.from(districtContainer.children).forEach(child => {
+            if (child !== districtButton) (child as HTMLElement).classList.remove('selected-district');
+        });
+        updateAvailableOptions(i);
+        await updateDataAndMap();
+    };
+
+    districtContainer.appendChild(districtButton);
+}
+
+mapContainer.appendChild(overlay);
+
+app.appendChild(districtContainer);
+app.appendChild(mapContainer);
 
 /* ~---------------------FUNCTION DEFINITIONS---------------------~ */
 function updateAvailableOptions(district: number) {
@@ -70,7 +185,6 @@ function updateAvailableOptions(district: number) {
      * Updates the available options based on the selected district.
      * @param {number} district - The selected district.
      */
-
     options.forEach((option, index) => {
         const button = optionButtons[index];
         if (availableDataTypes[option].includes(district)) {
@@ -88,7 +202,6 @@ function setDistrictView(district: number) {
      * Sets the view of the map to the selected district.
      * @param {number} district - The selected district.
      */
-
     const districtCoordinates: { [key: number]: [number, number] } = {
         1: [40.789621, -124.109611],
         2: [40.898134, -121.662397],
@@ -106,44 +219,88 @@ function setDistrictView(district: number) {
 
     const coordinates = districtCoordinates[district];
     if (coordinates) {
-        map.setView(coordinates, DISTRICT_ZOOM);
+        map.setView(coordinates, DISTRICT_ZOOM, { animate: false }); // Prevent random map movement
     }
 }
 
+let isUpdating = false; // Flag to track if the update is already running
+
 function updateMap() {
     /**
-     * Updates the map with the data from the persistent data dictionary.
+     * Updates the map with the data from the persistent data dictionary, preventing duplicate markers.
      */
+    if (isUpdating) {
+        return; // Prevent nested or excessive calls
+    }
 
-    map.eachLayer((layer: typeof L.Layer) => {
-        if (layer instanceof L.Marker) {
-            map.removeLayer(layer);
-        }
-    });
+    isUpdating = true; // Set flag to indicate update is in progress
 
-    const bounds = map.getBounds();
-    Object.entries(persistentDataDictionary).forEach(([key, dataArray]) => {
-        dataArray.forEach((data: any) => {
-            const dataEntry = data[key];
-            if (dataEntry && dataEntry.location) {
-                const latitude = parseFloat(dataEntry.location.latitude);
-                const longitude = parseFloat(dataEntry.location.longitude);
-                const district = parseInt(dataEntry.location.district);
-                if (!isNaN(latitude) && !isNaN(longitude) && bounds.contains([latitude, longitude]) && district === selectedDistrict.value) {
-                    const marker = L.marker([latitude, longitude], {
-                        icon: markerImage,
-                    }).addTo(map);
-                    
-                    // Center the map on the marker when it is clicked before showing the popup
-                    // marker.on('click', () => {
-                    //     map.setView([latitude, longitude], map.getZoom(), { animate: true });
-                    // });
-
-                    marker.bindPopup(createPopup(data));
-                }
+    try {
+        map.eachLayer((layer: typeof L.Layer) => {
+            if (layer instanceof L.Marker) {
+                map.removeLayer(layer);
             }
         });
-    });
+
+        const bounds = map.getBounds();
+        const existingMarkers = new Set<string>();
+
+        Object.entries(persistentDataDictionary).forEach(([key, dataArray]) => {
+            dataArray.forEach((data: any) => {
+                const dataEntry = data[key];
+                if (dataEntry && dataEntry.location) {
+                    const latitude = parseFloat(dataEntry.location.latitude);
+                    const longitude = parseFloat(dataEntry.location.longitude);
+                    const district = parseInt(dataEntry.location.district);
+                    const markerId = `${latitude}-${longitude}`;
+
+                    let makePopup = true;
+
+                    if (!isNaN(latitude) && !isNaN(longitude) && bounds.contains([latitude, longitude]) && district === selectedDistrict.value) {
+                        if (!existingMarkers.has(markerId)) {
+                            existingMarkers.add(markerId);
+
+                            let iconImage;
+                            switch (data.type) {
+                                case 'cc':
+                                    // if cc description contains "No chain controls are in effect at this time.", make popup is set to false
+                                    let dataEntry = data[data.type];
+                                    if (dataEntry.statusData.statusDescription === "No chain controls are in effect at this time.") {
+                                        makePopup = false;
+                                    }
+                                    iconImage = ccMarkerImage;
+                                    break;
+                                case 'cctv':
+                                    iconImage = cctvMarkerImage;
+                                    break;
+                                case 'cms':
+                                    // if cms message is Blank, make popup is set to false
+                                    let dataEntryCMS = data[data.type];
+                                    if (dataEntryCMS.message.display === "Blank") {
+                                        makePopup = false;
+                                    }
+                                    iconImage = cmsMarkerImage;
+                                    
+                                    break;
+                                default:
+                                    iconImage = markerImage;
+                            }
+                            
+                            if (makePopup) {
+                                const marker = L.marker([latitude, longitude], {
+                                    icon: iconImage,
+                                }).addTo(map);
+    
+                                customBindPopup(marker, data);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    } finally {
+        isUpdating = false; // Reset flag after update
+    }
 }
 
 function createPopup(data: any) {
@@ -151,7 +308,6 @@ function createPopup(data: any) {
      * Creates a popup for the given data.
      * @param {any} data - The data to create a popup for.
      */
-
     const popupContent = document.createElement('div');
     popupContent.classList.add('popup-content');
     const dataEntry = data[data.type];
@@ -161,7 +317,6 @@ function createPopup(data: any) {
         return popupContent;
     }
 
-    // Create popup content based on the object type using switch-case
     switch (data.type) {
         case 'cc':
             popupContent.innerHTML = `
@@ -173,7 +328,6 @@ function createPopup(data: any) {
                 Description: ${dataEntry.statusData?.statusDescription || 'N/A'}
             `;
             break;
-
         case 'cctv':
             popupContent.innerHTML = `
                 <strong>CCTV Object Details</strong><br>
@@ -242,12 +396,19 @@ function createPopup(data: any) {
             break;
 
         case 'cms':
+            let displayLine1 = dataEntry.message?.phase1?.phase1Line1 || 'N/A';
+            let displayLine2 = dataEntry.message?.phase1?.phase1Line2 || 'N/A';
+            let displayLine3 = dataEntry.message?.phase1?.phase1Line3 || 'N/A';
+
             popupContent.innerHTML = `
                 <strong>CMS Object Details</strong><br>
                 Index: ${dataEntry.index || 'N/A'}<br>
                 Location: ${dataEntry.location.locationName || 'N/A'}, ${dataEntry.location.county || 'N/A'}<br>
                 In Service: ${dataEntry.inService || 'N/A'}<br>
-                Display Message: ${dataEntry.message?.display || 'N/A'}
+                Message: <br>
+                ${displayLine1}<br>
+                ${displayLine2}<br>
+                ${displayLine3}<br>
             `;
             break;
 
@@ -283,7 +444,7 @@ function createPopup(data: any) {
                 Update Frequency: ${dataEntry.traveltime?.traveltimeUpdateFrequency || 'N/A'}
             `;
             break;
-
+        // Add other cases as needed
         default:
             popupContent.innerHTML = `<strong>Unknown Object Type</strong><br>Data: ${JSON.stringify(data)}`;
             break;
@@ -292,17 +453,42 @@ function createPopup(data: any) {
     return popupContent;
 }
 
+function customBindPopup(marker: any, data: any) {
+    /**
+        * Allows for multi line bindPopup content.
+     */
+
+    console.log("custom bind popup fired: ", typeof data, typeof marker);
+    
+    const markerLatLnt = marker.getLatLng();
+    // Bind the popup to the marker and ensure there is enough map space to display the entire popup without it closing
+    marker.bindPopup(createPopup(data), {
+        autoPan: true,
+        autoPanPadding: new L.Point(100,100),
+        keepInView: true
+    });
+
+
+}
+
+function panToLocation(lat: number, lng: number, zoomLevel: number) {
+    /**
+     * Pans the map to the given location.
+     * @param {number} lat - The latitude of the location.
+     * @param {number} lng - The longitude of the location.
+     * @param {number} zoomLevel - The zoom level of the map.
+        */
+    
+    map.setView([lat, lng], zoomLevel);
+}
 
 
 
-/* ~--------------------------LISTENERS---------------------------~ */
-map.on('moveend', () => {
-    updateMap();
-});
+async function updateDataAndMap() {
+    /**
+     * Updates the data and map based on the selected options and district.
+     */
 
-submitButton.onclick = async () => {
-    submitButton.disabled = true;
-    submitButton.innerText = 'Loading...';
     persistentDataDictionary = {};
     let binaryFlag = 0;
 
@@ -312,72 +498,18 @@ submitButton.onclick = async () => {
         }
     });
 
-    persistentDataDictionary = await createDataDictionary(binaryFlag, [selectedDistrict.value]);
-    
-    const isDataEmpty = Object.values(persistentDataDictionary).every(dataArray => dataArray.length === 0);
-    if (isDataEmpty) {
-        alert('No data available for the selected type(s) and district.');
-    } else {
-        const resultContainer = document.createElement('div');
-        resultContainer.id = 'resultContainer';
-        resultContainer.innerHTML = '';
-        Object.entries(persistentDataDictionary).forEach(([key, dataArray]) => {
-            if (dataArray.length > 0) {
-                const result = document.createElement('p');
-                result.innerText = `${key.toUpperCase()} contains ${dataArray.length} objects`;
-                resultContainer.appendChild(result);
-            }
-        });
-
-        if (!document.getElementById('resultContainer')) {
-            app.appendChild(resultContainer);
-        } else {
-            const existingContainer = document.getElementById('resultContainer') as HTMLElement;
-            existingContainer.replaceWith(resultContainer);
-        }
-
+    if (binaryFlag === 0) {
+        persistentDataDictionary = {};
         updateMap();
+        return;
     }
 
-    submitButton.disabled = false;
-    submitButton.innerText = 'Submit';
-};
 
-options.forEach((option, index) => {
-    const button = document.createElement('button');
-    button.innerText = option.toUpperCase();
-    button.classList.add('option-button');
-    button.onclick = () => {
-        selectedOptions[index] = !selectedOptions[index];
-        if (selectedOptions[index]) {
-            button.classList.add('selected');
-        } else {
-            button.classList.remove('selected');
-        }
-    };
-
-    app.appendChild(button);
-    optionButtons.push(button);
-});
-
-for (let i = 1; i <= 12; i++) {
-    const districtButton = document.createElement('button');
-    districtButton.innerText = `District ${i}`;
-    districtButton.classList.add('district-button');
-    districtButton.onclick = () => {
-        selectedDistrict.value = i;
-        districtButton.classList.add('selected-district');
-        setDistrictView(i);
-        Array.from(districtContainer.children).forEach(child => {
-            if (child !== districtButton) (child as HTMLElement).classList.remove('selected-district');
-        });
-        updateAvailableOptions(i);
-        updateMap();
-    };
-
-    districtContainer.appendChild(districtButton);
+    persistentDataDictionary = await createDataDictionary(binaryFlag, [selectedDistrict.value]);
+    updateMap();
 }
-app.appendChild(districtContainer);
 
-app.appendChild(submitButton);
-app.appendChild(mapContainer);
+/* ~--------------------------LISTENERS---------------------------~ */
+map.on('moveend', () => {
+    updateMap();
+});

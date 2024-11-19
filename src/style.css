@@ -71,6 +71,42 @@ h1 {
   width: 100%;
   height: 100vw;
   margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ~------------------OVERLAY STYLES----------------~ */
+
+#overlay {
+  font-family: PoppinsRegular, sans-serif;
+  background-color: #4caf50;
+  border-radius: 5px;
+  padding: 10px;
+  margin-left: 50px;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  pointer-events: none;
+}
+
+#overlay button {
+  pointer-events: auto;
+  box-shadow: none;
+}
+
+#overlay button:hover {
+  color: white;
+  border-color: transparent;
+  background-color: #DE6461;
+  
+}
+
+#overlay button:selected {
+  background-color: #DE6461;
 }
 
 /* ~------------------SCROLLBAR STYLES----------------~ */
@@ -103,9 +139,12 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #c6c6c6;
+  background-color: rgba(255, 255, 255, 0.8); /* Updated for better visibility */
+  color: #000; /* Ensures text is visible on light background */
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Adds subtle shadow for contrast */
+  z-index: 1001; /* Ensures buttons stay above the map */
 }
 
 button:hover {
@@ -132,7 +171,6 @@ button:disabled {
   font-family: PoppinsRegular, sans-serif;
 }
 
-
 .popup-content.expanded {
   max-height: 500px;
 }
@@ -147,7 +185,6 @@ button:disabled {
   opacity: 0;
 }
 
-
 /* ~------------------LIGHT MODE OVERRIDES----------------~ */
 
 @media (prefers-color-scheme: light) {
@@ -161,40 +198,47 @@ button:disabled {
   }
 
   button {
-    background-color: #f9f9f9;
+    background-color: rgba(255, 255, 255, 0.8); /* Match button style */
+    color: #000;
   }
 }
 
 /* ~------------------CUSTOM STYLES----------------~ */
 
-#districtContainer {
-  margin-top: 20px;
+#districtContainer,
+#map {
+  margin: 0 auto;
+  max-width: 100%;
 }
 
-#submitButton {
-  margin: 10px;
-  padding: 10px;
-  cursor: pointer;
+#map {
+  height: 800px;
+  width: 90%;
+  border: 1px solid black;
 }
 
 .option-button {
   margin: 5px;
   padding: 10px;
   cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.9);
 }
 
 .district-button {
   margin: 5px;
   padding: 10px;
   cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.9);
 }
 
 .selected {
-  background-color: lightgreen;
+  background-color: #DE6461; /* Green color */
+  color: #fff; /* White text for contrast */
 }
 
 .selected-district {
-  background-color: lightblue;
+  background-color: #2196f3; /* Blue color */
+  color: #fff; /* White text for contrast */
 }
 
 #resultContainer {
