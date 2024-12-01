@@ -58,7 +58,6 @@ const cmsMarkerImage = L.icon({
     popupAnchor: [0, -24.5],
 });
 
-
 // HTML Elements
 const app = document.getElementById('app') as HTMLElement;
 const options: Array<keyof typeof availableDataTypes> = ['cc', 'cctv', 'cms', 'lcs', 'rwis', 'tt'];
