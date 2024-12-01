@@ -7,7 +7,7 @@ const getRedirectURI = () => {
     if (currentHost.includes('localhost') || currentHost.includes('127.0.0.1')) {
         return 'http://localhost:5173/';
     }
-    return 'https://exterminathan.github.io';
+    return 'https://exterminathan.github.io/';
 };
 
 // Utility to generate a random string
