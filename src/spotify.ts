@@ -32,7 +32,6 @@ export class SpotifyAPI {
                 // Exchange the authorization code for tokens
                 const tokenResponse = await exchangeToken(code);
                 this.saveTokens(tokenResponse);
-                this.updateUIState(true);
 
                 // Clean up the URL
                 currentUrl.searchParams.delete('code');
@@ -118,11 +117,6 @@ export class SpotifyAPI {
     // deno-lint-ignore no-explicit-any
     async getPlaybackState(): Promise<any> {
         return await this.requestAPI('me/player', 'GET');
-    }
-
-    private updateUIState(enabled: boolean): void {
-        (document.getElementById('play') as HTMLButtonElement)!.disabled = !enabled;
-        (document.getElementById('pause') as HTMLButtonElement)!.disabled = !enabled;
     }
 }
 
