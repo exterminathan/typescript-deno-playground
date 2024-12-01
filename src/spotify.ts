@@ -130,16 +130,19 @@ const spotify = new SpotifyAPI();
 
 // Add button event listeners
 document.getElementById('load')?.addEventListener('click', async () => {
+    console.log("Loading API...");
     await spotify.ensureAuthorization(['user-read-playback-state', 'user-modify-playback-state']);
     console.log('API Loaded.');
 });
 
 document.getElementById('play')?.addEventListener('click', async () => {
+    console.log('Playing...');
     await spotify.play();
     console.log('Playback started.');
 });
 
 document.getElementById('pause')?.addEventListener('click', async () => {
+    console.log('Pausing...');
     await spotify.pause();
     console.log('Playback paused.');
 });
