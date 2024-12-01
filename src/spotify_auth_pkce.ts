@@ -3,6 +3,7 @@
 // Utility to get the correct redirect URI based on the environment
 const getRedirectURI = () => {
     const currentHost = globalThis.location.origin;
+    console.log(currentHost);
     if (currentHost.includes('localhost') || currentHost.includes('127.0.0.1')) {
         return 'http://localhost:5173/';
     }
