@@ -1,4 +1,5 @@
 // spotify_auth_pkce.ts
+console.log('spotify_auth_pkce.ts loaded'); 
 
 // Utility to get the correct redirect URI based on the environment
 const getRedirectURI = () => {

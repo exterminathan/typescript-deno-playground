@@ -1,3 +1,4 @@
+console.log("spotify.ts loaded");
 import { getAuthUrl, exchangeToken, refreshToken } from './spotify_auth_pkce.ts';
 
 export class SpotifyAPI {
