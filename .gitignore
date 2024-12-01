@@ -24,3 +24,4 @@ dist-ssr
 *.sln
 *.sw?
 *.txt
+src/creds.ts

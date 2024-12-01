@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,5 +10,38 @@
         
     </div>
     <script type="module" src="/src/main.ts"></script>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify PKCE Auth App</title>
+    <!-- <link rel="stylesheet" href="src/style.css"> -->
+</head>
+<body>
+    <header>
+        <h1>Spotify PKCE Auth App</h1>
+    </header>
+
+    <main>
+        <section id="controls">
+            <button id="load">Load API</button>
+            <button id="play">Play</button>
+            <button id="pause">Pause</button>
+        </section>
+
+        <section id="log">
+            <h2>Logs</h2>
+            <div id="messages"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Powered by Spotify API</p>
+    </footer>
+
+    <script type="module" src="src/spotify.ts"></script>
 </body>
 </html>
