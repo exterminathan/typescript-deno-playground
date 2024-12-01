@@ -44,14 +44,25 @@ const base64encode = (input: ArrayBuffer) => {
         .replace(/\//g, '_');
 };
 
-// Generate the code challenge
-const codeChallenge = base64encode(await sha256(codeVerifier));
-// Print code challenge to console
-console.log(codeChallenge);
+// Utility to get code challenge
+const getCodeChallenge = async () => {
+    const hash = await sha256(codeVerifier);
+    return base64encode(hash);
+};
+
 
 // Spotify client ID and redirect URI
 const clientId = '7e524fae1f6b426bbb13bc3770d0ed8f'; // Replace with your Spotify Client ID
 const redirectUri = getRedirectURI(); // Replace with your GitHub Pages URL
+
+// Generate code challenge asynchronously
+let codeChallenge: string;
+(async () => {
+    codeChallenge = await getCodeChallenge();
+    console.log(codeChallenge);
+})();
+
+
 
 export const getAuthUrl = (scopes: string[]) => {
     const authUrl = new URL('https://accounts.spotify.com/authorize');
