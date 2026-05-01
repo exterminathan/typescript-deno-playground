@@ -18,6 +18,8 @@ jobs:
           deno-version: v2.x
       - name: Check lint
         run: deno lint .
+      - name: Type check
+        run: deno check --node-modules-dir src/main.ts
   deploy:
     environment:
       name: github-pages

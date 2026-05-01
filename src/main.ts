@@ -1,68 +1,42 @@
 // main.ts
 // Nathan Shturm
 
-// TODO: fix memory usage: eventually the page crashes due to being out of memory
+// deno-lint-ignore-file no-explicit-any
 
-// deno-lint-ignore-file
-
-// Imports
 import { createDataDictionary } from './dataProcessor.ts';
 import { availableDataTypes } from './dataFetcher.ts';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as LCG from 'leaflet-control-geocoder';
 import './style.css';
-import "./leafletWorkaround.ts";
+import './leafletWorkaround.ts';
 
-//@ts-ignore 
-import markerIconImage from "../assets/location.png";
-//@ts-ignore
-import ccIcon from "../assets/ccIcon.png";
-//@ts-ignore
-import cctvIcon from "../assets/cctvIcon.png";
-//@ts-ignore
-import cmsIcon from "../assets/cmsIcon.png";
+import markerIconImage from '../assets/location.png';
+import ccIcon from '../assets/ccIcon.png';
+import cctvIcon from '../assets/cctvIcon.png';
+import cmsIcon from '../assets/cmsIcon.png';
 
 import 'leaflet-control-geocoder/dist/Control.Geocoder.css';
 
 /* ~-------------------VARIABLES/INITIALIZATION-------------------~ */
-// Constants
 const DISTRICT_ZOOM = 10;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
-// Images
-const markerImage = L.icon({
-    iconUrl: markerIconImage,
-    iconSize: [35, 49],
-    iconAnchor: [17.5, 49],
-    popupAnchor: [0, -24.5],
-});
+const iconFor = (url: string) =>
+    L.icon({ iconUrl: url, iconSize: [35, 49], iconAnchor: [17.5, 49], popupAnchor: [0, -24.5] });
 
-const ccMarkerImage = L.icon({
-    iconUrl: ccIcon,
-    iconSize: [35, 49],
-    iconAnchor: [17.5, 49],
-    popupAnchor: [0, -24.5],
-});
+const markerImage = iconFor(markerIconImage);
+const ccMarkerImage = iconFor(ccIcon);
+const cctvMarkerImage = iconFor(cctvIcon);
+const cmsMarkerImage = iconFor(cmsIcon);
 
-const cctvMarkerImage = L.icon({
-    iconUrl: cctvIcon,
-    iconSize: [35, 49],
-    iconAnchor: [17.5, 49],
-    popupAnchor: [0, -24.5],
-});
+type DataType = keyof typeof availableDataTypes;
+type DataDictionary = Record<string, any[]>;
 
-const cmsMarkerImage = L.icon({
-    iconUrl: cmsIcon,
-    iconSize: [35, 49],
-    iconAnchor: [17.5, 49],
-    popupAnchor: [0, -24.5],
-});
-
-// HTML Elements
 const app = document.getElementById('app') as HTMLElement;
-const options: Array<keyof typeof availableDataTypes> = ['cc', 'cctv', 'cms', 'lcs', 'rwis', 'tt'];
+const options: DataType[] = ['cc', 'cctv', 'cms', 'lcs', 'rwis', 'tt'];
 const selectedOptions = new Array(6).fill(false);
-let persistentDataDictionary: { [key: string]: any[] } = {};
+let persistentDataDictionary: DataDictionary = {};
 const optionButtons: HTMLButtonElement[] = [];
 
 const districtContainer = document.createElement('div');
@@ -76,10 +50,14 @@ app.appendChild(mapContainer);
 const map = L.map('map').setView([37.7749, -122.4194], 6);
 map.doubleClickZoom.disable();
 
+// Single LayerGroup holds all markers — replaces per-pan rebuild that was leaking memory.
+const markerLayer = L.layerGroup().addTo(map);
 
-// Create Leaflet map
+// In-memory cache: key = `${district}-${binaryFlag}`
+const dataCache = new Map<string, { data: DataDictionary; timestamp: number }>();
+
 L.tileLayer(
-    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png", {
+    'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
         minZoom: 0,
         maxZoom: 20,
         zoomControl: true,
@@ -88,49 +66,35 @@ L.tileLayer(
     }
 ).addTo(map);
 
-// Add LCG geocoder control
-const geocoder = LCG.geocoder({
+LCG.geocoder({
     defaultMarkGeocode: true,
     position: 'topright',
 })
-    .on('markgeocode', function (e) {
+    .on('markgeocode', (e: any) => {
         const latlng = e.geocode.center;
         map.setView(latlng, 15);
-        updateMap();
     })
     .addTo(map);
 
-// overlay div for type buttons
 const overlay = document.createElement('div');
 overlay.id = 'overlay';
 
-// overlay drop down button
 const overlayDropDownButton = document.createElement('button');
 overlayDropDownButton.innerText = 'Data Points';
 overlayDropDownButton.classList.add('option-button');
 overlayDropDownButton.onclick = () => {
-    overlay.classList.toggle('show'); // Toggle the dropdown's visibility
-    overlayDropDownButton.classList.toggle('expanded'); // Indicate the button is active
-    
-    // Hide or show buttons based on the overlay's visibility
-    if (overlay.classList.contains('show')) {
-        Array.from(overlay.children).forEach(child => {
-            if (child !== overlayDropDownButton) {
-                (child as HTMLElement).style.display = 'block';
-            }
-        });
-    } else {
-        Array.from(overlay.children).forEach(child => {
-            if (child !== overlayDropDownButton) {
-                (child as HTMLElement).style.display = 'none';
-            }
-        });
-    }
+    overlay.classList.toggle('show');
+    overlayDropDownButton.classList.toggle('expanded');
+
+    const isShown = overlay.classList.contains('show');
+    Array.from(overlay.children).forEach(child => {
+        if (child !== overlayDropDownButton) {
+            (child as HTMLElement).style.display = isShown ? 'block' : 'none';
+        }
+    });
 };
 
-
 overlay.appendChild(overlayDropDownButton);
-
 
 options.forEach((option, index) => {
     const button = document.createElement('button');
@@ -138,23 +102,13 @@ options.forEach((option, index) => {
     button.classList.add('option-button');
     button.onclick = async () => {
         selectedOptions[index] = !selectedOptions[index];
-        if (selectedOptions[index]) {
-            button.classList.add('selected');
-        } else {
-            button.classList.remove('selected');
-        }
-
-        await updateDataAndMap(); // Ensures map doesn't move when an option is toggled
+        button.classList.toggle('selected', selectedOptions[index]);
+        await updateDataAndMap();
     };
 
     overlay.append(button);
     optionButtons.push(button);
 });
-
-
-
-
-
 
 for (let i = 1; i <= 12; i++) {
     const districtButton = document.createElement('button');
@@ -175,16 +129,11 @@ for (let i = 1; i <= 12; i++) {
 }
 
 mapContainer.appendChild(overlay);
-
 app.appendChild(districtContainer);
 app.appendChild(mapContainer);
 
 /* ~---------------------FUNCTION DEFINITIONS---------------------~ */
 function updateAvailableOptions(district: number) {
-    /**
-     * Updates the available options based on the selected district.
-     * @param {number} district - The selected district.
-     */
     options.forEach((option, index) => {
         const button = optionButtons[index];
         if (availableDataTypes[option].includes(district)) {
@@ -198,10 +147,6 @@ function updateAvailableOptions(district: number) {
 }
 
 function setDistrictView(district: number) {
-    /**
-     * Sets the view of the map to the selected district.
-     * @param {number} district - The selected district.
-     */
     const districtCoordinates: { [key: number]: [number, number] } = {
         1: [40.789621, -124.109611],
         2: [40.898134, -121.662397],
@@ -214,100 +159,75 @@ function setDistrictView(district: number) {
         9: [37.7459, -119.5971],
         10: [38.1041, -120.2351],
         11: [32.7157, -117.1611],
-        12: [33.7455, -117.8677]
+        12: [33.7455, -117.8677],
     };
 
     const coordinates = districtCoordinates[district];
     if (coordinates) {
-        map.setView(coordinates, DISTRICT_ZOOM, { animate: false }); // Prevent random map movement
+        map.setView(coordinates, DISTRICT_ZOOM, { animate: false });
     }
 }
 
-let isUpdating = false; // Flag to track if the update is already running
+function rebuildMarkers() {
+    markerLayer.clearLayers();
+    const seen = new Set<string>();
 
-function updateMap() {
-    /**
-     * Updates the map with the data from the persistent data dictionary, preventing duplicate markers.
-     */
-    if (isUpdating) {
-        return; // Prevent nested or excessive calls
-    }
+    Object.entries(persistentDataDictionary).forEach(([key, dataArray]) => {
+        dataArray.forEach((data: any) => {
+            const dataEntry = data[key];
+            if (!dataEntry?.location) return;
 
-    isUpdating = true; // Set flag to indicate update is in progress
+            const latitude = parseFloat(dataEntry.location.latitude);
+            const longitude = parseFloat(dataEntry.location.longitude);
+            const district = parseInt(dataEntry.location.district);
+            if (isNaN(latitude) || isNaN(longitude)) return;
+            if (district !== selectedDistrict.value) return;
 
-    try {
-        map.eachLayer((layer: typeof L.Layer) => {
-            if (layer instanceof L.Marker) {
-                map.removeLayer(layer);
-            }
-        });
+            const markerId = `${latitude}-${longitude}-${data.type}`;
+            if (seen.has(markerId)) return;
+            seen.add(markerId);
 
-        const bounds = map.getBounds();
-        const existingMarkers = new Set<string>();
-
-        Object.entries(persistentDataDictionary).forEach(([key, dataArray]) => {
-            dataArray.forEach((data: any) => {
-                const dataEntry = data[key];
-                if (dataEntry && dataEntry.location) {
-                    const latitude = parseFloat(dataEntry.location.latitude);
-                    const longitude = parseFloat(dataEntry.location.longitude);
-                    const district = parseInt(dataEntry.location.district);
-                    const markerId = `${latitude}-${longitude}`;
-
-                    let makePopup = true;
-
-                    if (!isNaN(latitude) && !isNaN(longitude) && bounds.contains([latitude, longitude]) && district === selectedDistrict.value) {
-                        if (!existingMarkers.has(markerId)) {
-                            existingMarkers.add(markerId);
-
-                            let iconImage;
-                            switch (data.type) {
-                                case 'cc':
-                                    // if cc description contains "No chain controls are in effect at this time.", make popup is set to false
-                                    let dataEntry = data[data.type];
-                                    if (dataEntry.statusData.statusDescription === "No chain controls are in effect at this time.") {
-                                        makePopup = false;
-                                    }
-                                    iconImage = ccMarkerImage;
-                                    break;
-                                case 'cctv':
-                                    iconImage = cctvMarkerImage;
-                                    break;
-                                case 'cms':
-                                    // if cms message is Blank, make popup is set to false
-                                    let dataEntryCMS = data[data.type];
-                                    if (dataEntryCMS.message.display === "Blank") {
-                                        makePopup = false;
-                                    }
-                                    iconImage = cmsMarkerImage;
-                                    
-                                    break;
-                                default:
-                                    iconImage = markerImage;
-                            }
-                            
-                            if (makePopup) {
-                                const marker = L.marker([latitude, longitude], {
-                                    icon: iconImage,
-                                }).addTo(map);
-    
-                                customBindPopup(marker, data);
-                            }
-                        }
+            let iconImage;
+            let makePopup = true;
+            switch (data.type) {
+                case 'cc': {
+                    const entry = data[data.type];
+                    if (entry.statusData?.statusDescription === 'No chain controls are in effect at this time.') {
+                        makePopup = false;
                     }
+                    iconImage = ccMarkerImage;
+                    break;
                 }
+                case 'cctv':
+                    iconImage = cctvMarkerImage;
+                    break;
+                case 'cms': {
+                    const entry = data[data.type];
+                    if (entry.message?.display === 'Blank') {
+                        makePopup = false;
+                    }
+                    iconImage = cmsMarkerImage;
+                    break;
+                }
+                default:
+                    iconImage = markerImage;
+            }
+
+            if (!makePopup) return;
+
+            const marker = L.marker([latitude, longitude], { icon: iconImage });
+            // Lazy popup: createPopup runs only when the user actually opens it.
+            marker.bindPopup(() => createPopup(data), {
+                autoPan: true,
+                autoPanPadding: new L.Point(100, 100),
+                keepInView: true,
             });
+            markerLayer.addLayer(marker);
         });
-    } finally {
-        isUpdating = false; // Reset flag after update
-    }
+    });
 }
 
 function createPopup(data: any) {
-    /**
-     * Creates a popup for the given data.
-     * @param {any} data - The data to create a popup for.
-     */
     const popupContent = document.createElement('div');
     popupContent.classList.add('popup-content');
     const dataEntry = data[data.type];
@@ -334,15 +254,14 @@ function createPopup(data: any) {
                 Index: ${dataEntry.index || 'N/A'}<br>
                 Location: ${dataEntry.location.locationName || 'N/A'}, ${dataEntry.location.county || 'N/A'}<br>
                 In Service: ${dataEntry.inService || 'N/A'}<br>
-                Current Image URL: ${dataEntry.imageData?.static?.currentImageURL 
-                    ? `<a href="#" id="imageLink">View Image</a>` 
+                Current Image URL: ${dataEntry.imageData?.static?.currentImageURL
+                    ? `<a href="#" id="imageLink">View Image</a>`
                     : 'N/A'}<br>
-                Streaming URL: ${dataEntry.imageData?.streamingVideoURL 
-                    ? `<a href="${dataEntry.imageData.streamingVideoURL}" target="_blank">Watch Stream</a>` 
+                Streaming URL: ${dataEntry.imageData?.streamingVideoURL
+                    ? `<a href="${dataEntry.imageData.streamingVideoURL}" target="_blank">Watch Stream</a>`
                     : 'N/A'}
             `;
 
-            // Add event listener to toggle image visibility and change link text
             if (dataEntry.imageData?.static?.currentImageURL) {
                 const imageLink = popupContent.querySelector('#imageLink') as HTMLAnchorElement;
                 imageLink.onclick = (e) => {
@@ -355,18 +274,12 @@ function createPopup(data: any) {
                         image.style.width = '100%';
                         image.style.marginTop = '10px';
                         image.classList.add('popup-image');
-                        image.style.opacity = '0'; 
+                        image.style.opacity = '0';
 
-                        // Append the image and set the transition after it loads
                         image.onload = () => {
-                            if (image) {
-                                image.style.opacity = '1'; 
-                            }
-
-                            popupContent.classList.add('no-scroll'); 
+                            if (image) image.style.opacity = '1';
+                            popupContent.classList.add('no-scroll');
                             popupContent.scrollTop = 0;
-
-                            // Delay for a smooth transition
                             setTimeout(() => {
                                 popupContent.classList.add('expanded');
                                 popupContent.classList.remove('no-scroll');
@@ -395,10 +308,10 @@ function createPopup(data: any) {
             }
             break;
 
-        case 'cms':
-            let displayLine1 = dataEntry.message?.phase1?.phase1Line1 || 'N/A';
-            let displayLine2 = dataEntry.message?.phase1?.phase1Line2 || 'N/A';
-            let displayLine3 = dataEntry.message?.phase1?.phase1Line3 || 'N/A';
+        case 'cms': {
+            const displayLine1 = dataEntry.message?.phase1?.phase1Line1 || 'N/A';
+            const displayLine2 = dataEntry.message?.phase1?.phase1Line2 || 'N/A';
+            const displayLine3 = dataEntry.message?.phase1?.phase1Line3 || 'N/A';
 
             popupContent.innerHTML = `
                 <strong>CMS Object Details</strong><br>
@@ -411,6 +324,7 @@ function createPopup(data: any) {
                 ${displayLine3}<br>
             `;
             break;
+        }
 
         case 'lcs':
             popupContent.innerHTML = `
@@ -444,7 +358,6 @@ function createPopup(data: any) {
                 Update Frequency: ${dataEntry.traveltime?.traveltimeUpdateFrequency || 'N/A'}
             `;
             break;
-        // Add other cases as needed
         default:
             popupContent.innerHTML = `<strong>Unknown Object Type</strong><br>Data: ${JSON.stringify(data)}`;
             break;
@@ -453,63 +366,29 @@ function createPopup(data: any) {
     return popupContent;
 }
 
-function customBindPopup(marker: any, data: any) {
-    /**
-        * Allows for multi line bindPopup content.
-     */
-
-    console.log("custom bind popup fired: ", typeof data, typeof marker);
-    
-    const markerLatLnt = marker.getLatLng();
-    // Bind the popup to the marker and ensure there is enough map space to display the entire popup without it closing
-    marker.bindPopup(createPopup(data), {
-        autoPan: true,
-        autoPanPadding: new L.Point(100,100),
-        keepInView: true
-    });
-
-
+async function getCachedDictionary(binaryFlag: number, district: number): Promise<DataDictionary> {
+    const key = `${district}-${binaryFlag}`;
+    const cached = dataCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
+    }
+    const data = await createDataDictionary(binaryFlag, [district]);
+    dataCache.set(key, { data, timestamp: Date.now() });
+    return data;
 }
-
-function panToLocation(lat: number, lng: number, zoomLevel: number) {
-    /**
-     * Pans the map to the given location.
-     * @param {number} lat - The latitude of the location.
-     * @param {number} lng - The longitude of the location.
-     * @param {number} zoomLevel - The zoom level of the map.
-        */
-    
-    map.setView([lat, lng], zoomLevel);
-}
-
-
 
 async function updateDataAndMap() {
-    /**
-     * Updates the data and map based on the selected options and district.
-     */
-
-    persistentDataDictionary = {};
     let binaryFlag = 0;
-
     selectedOptions.forEach((isSelected, i) => {
-        if (isSelected) {
-            binaryFlag |= (1 << i);
-        }
+        if (isSelected) binaryFlag |= (1 << i);
     });
 
     if (binaryFlag === 0) {
         persistentDataDictionary = {};
-        updateMap();
+        rebuildMarkers();
         return;
     }
 
-
-    persistentDataDictionary = await createDataDictionary(binaryFlag, [selectedDistrict.value]);
-    updateMap();
+    persistentDataDictionary = await getCachedDictionary(binaryFlag, selectedDistrict.value);
+    rebuildMarkers();
 }
-
-/* ~--------------------------LISTENERS---------------------------~ */
-map.on('moveend', () => {
-    updateMap();
-});
