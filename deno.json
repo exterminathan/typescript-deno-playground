@@ -12,7 +12,8 @@
       "es2015",
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "deno.ns"
     ],
     "types": [
       "npm:@types/leaflet"
