@@ -26,3 +26,4 @@ dist-ssr
 *.txt
 src/creds.ts
 .claude/
+CLAUDE.md
